@@ -4,6 +4,8 @@
 #include <string>
 #include <fstream>
 
+#include "Frame.h"
+
 class MotionCompensation {
 
 public:
@@ -11,6 +13,8 @@ public:
     ~MotionCompensation();
 
     void run();
+
+    static double calculatePSNR(const Frame& frame1, const Frame& frame2);
 
 private:
     int _width;
@@ -21,6 +25,8 @@ private:
 
     const int _blockWidth = 8;
     const int _blockSize = _blockWidth * _blockWidth;
+
+    const int _searchRadius = 4;
 
     int _blocksPerWidth;
     int _blocksPerHeight;
