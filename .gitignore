@@ -1,0 +1,4 @@
+video.*
+venv/
+cmake-build-debug/
+.idea
