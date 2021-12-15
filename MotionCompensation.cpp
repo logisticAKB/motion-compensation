@@ -4,6 +4,9 @@
 #include "MotionCompensation.h"
 #include "Frame.h"
 
+#include <opencv2/opencv.hpp>
+using namespace cv;
+
 MotionCompensation::MotionCompensation(const std::string& path, int width, int height) {
     _width = width;
     _height = height;
@@ -24,11 +27,23 @@ MotionCompensation::~MotionCompensation() {
 void MotionCompensation::run() {
     _inputStream.read((char *)_buffer, _bufferSize);
     Frame prevFrame(_width, (int)(_height * 1.5), _bufferSize, _buffer);
-    int i = 0;
+
     while(_inputStream.read((char *)_buffer, _bufferSize)) {
-        i++;
-        if (i < 500) continue;
         Frame curFrame(_width, (int)(_height * 1.5), _bufferSize, _buffer);
+        if (prevFrame == curFrame) continue;
+
+
+
+        Mat img(_height + _height/2, _width, CV_8U, _buffer);
+
+        Mat img_rgb(_height, _width, CV_8UC3);
+        cvtColor(img, img_rgb, COLOR_YUV2RGBA_YV12, 3);
+
+        imshow ("RAW", img_rgb);
+        if(waitKey(30) >= 0) break;
+
+
+
         std::cout << "----- NEW FRAME -----" << (prevFrame == curFrame) << std::endl;
         for (int y = 0; y < _blocksPerHeight; y++) {
             for (int x = 0; x < _blocksPerWidth; x++) {
@@ -48,7 +63,6 @@ void MotionCompensation::run() {
                         Frame prevBlock = prevFrame.getBlock(prevFrameY, prevFrameX, _blockWidth);
 
                         double score = calculatePSNR(curBlock, prevBlock);
-                        std::cout << score << std::endl;
                         if (score > bestScore) {
                             bestScore = score;
                             bestPrevY = prevFrameY;
