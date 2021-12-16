@@ -20,12 +20,14 @@ int main() {
 //    }
 
     //
-//    auto *data2 = new unsigned char[16]{1,2,3,4,
-//                                        5,6,7,8,
-//                                        9,10,11,12,
-//                                        13,14,15,16};
+//    auto *data2 = new unsigned char[4]{101, 102,
+//                                       103, 104};
 //
-//    Frame frame2(4, 4, 16, data2);
+//    Frame frame2(2, 2, 4, data2);
+//
+//    frame.setBlock(0, 0, frame2);
+//
+//    auto frame3 = frame - frame2;
 //
 //    std::cout << (frame == frame2) << std::endl;
 
@@ -35,13 +37,12 @@ int main() {
 //
 //
 //
-//    for (int i = 0; i < 2; i++) {
-//        for (int j = 0; j < 2; j++) {
-//            std::cout << (int)frame.getDataPtr()[i * 2 + j] << ' ';
+//    for (int i = 0; i < 4; i++) {
+//        for (int j = 0; j < 4; j++) {
+//            std::cout << (int)frame.getDataPtr()[i * 4 + j] << ' ';
 //        }
 //        std::cout << std::endl;
 //    }
-
 
     MotionCompensation mc("../video.yuv420p", 1920, 1080);
     mc.run();

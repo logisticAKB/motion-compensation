@@ -16,7 +16,7 @@ Frame::~Frame() {
     _data = nullptr;
 }
 
-Frame Frame::getBlock(int y, int x, int blockWidth) {
+Frame Frame::getBlock(int y, int x, int blockWidth) const {
     int yOffset = y * blockWidth;
     int xOffset = x * blockWidth;
 
@@ -33,6 +33,15 @@ Frame Frame::getBlock(int y, int x, int blockWidth) {
     blockBuffer = nullptr;
 
     return block;
+}
+
+void Frame::setBlock(int y, int x, const Frame &block) {
+    int yOffset = y * block.getHeight();
+    int xOffset = x * block.getWidth();
+
+    for (int i = 0; i < block.getHeight(); i++) {
+        memcpy(_data + ((_width * (yOffset + i)) + xOffset), block.getDataPtr() + i * block.getWidth(), block.getWidth());
+    }
 }
 
 unsigned char *Frame::getDataPtr() const {
@@ -75,4 +84,20 @@ bool Frame::operator==(const Frame &other) const {
     }
 
     return true;
+}
+
+Frame operator-(const Frame &lhs, const Frame &rhs) {
+    auto *buffer = new unsigned char[lhs.getSize()];
+    memcpy(buffer, lhs.getDataPtr(), lhs.getSize());
+
+    for (int i = 0; i < lhs.getSize(); i++) {
+        buffer[i] = abs((int)lhs.getDataPtr()[i] - (int)rhs.getDataPtr()[i]);
+    }
+
+    Frame result(lhs.getWidth(), lhs.getHeight(), lhs.getSize(), buffer);
+
+    delete[] buffer;
+    buffer = nullptr;
+
+    return result;
 }
