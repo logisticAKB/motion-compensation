@@ -6,6 +6,7 @@ class Frame {
 
 public:
     Frame(int width, int height, int dataSize, unsigned char *data);
+    Frame(int width, int height, int dataSize);
     ~Frame();
 
     Frame getBlock(int y, int x, int blockWidth) const;

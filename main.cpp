@@ -45,7 +45,7 @@ int main() {
 //    }
 
     MotionCompensation mc("../video.yuv420p", 1920, 1080);
-    mc.run();
+    mc.run(8);
 
 //    std::ifstream input( "/home/alexey/Documents/video.yuv420p", std::ios::binary);
 //

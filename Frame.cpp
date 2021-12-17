@@ -11,6 +11,15 @@ Frame::Frame(int width, int height, int dataSize, unsigned char *data) {
     memcpy(_data, data, _dataSize);
 }
 
+Frame::Frame(int width, int height, int dataSize) {
+    _width = width;
+    _height = height;
+    _dataSize = dataSize;
+
+    _data = new unsigned char [_dataSize];
+    memset(_data, 0, _dataSize);
+}
+
 Frame::~Frame() {
     delete[] _data;
     _data = nullptr;

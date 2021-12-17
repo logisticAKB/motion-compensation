@@ -1,11 +1,19 @@
 #include <iostream>
 #include <cmath>
+#include <atomic>
+#include <thread>
+#include <condition_variable>
 
 #include "MotionCompensation.h"
 #include "Frame.h"
 
 #include <opencv2/opencv.hpp>
+
 using namespace cv;
+
+std::atomic<int> nThreads;
+std::mutex cv_m;
+std::condition_variable cond;
 
 MotionCompensation::MotionCompensation(const std::string& path, int width, int height) {
     _width = width;
@@ -24,64 +32,33 @@ MotionCompensation::~MotionCompensation() {
     _buffer = nullptr;
 }
 
-void MotionCompensation::run() {
+void MotionCompensation::run(int threadsNum) {
+    nThreads = threadsNum;
+
     _inputStream.read((char *)_buffer, _bufferSize);
     Frame prevFrame(_width, (int)(_height * 1.5), _bufferSize, _buffer);
 
     while(_inputStream.read((char *)_buffer, _bufferSize)) {
         Frame curFrame(_width, (int)(_height * 1.5), _bufferSize, _buffer);
 
-        Frame newFrame(_width, (int)(_height * 1.5), _bufferSize, _buffer);
+        Frame newFrame(_width, (int)(_height * 1.5), _bufferSize);
 
         if (prevFrame == curFrame) continue;
 
-        Frame diff = curFrame - prevFrame;
-        Mat img(_height + _height/2, _width, CV_8U, diff.getDataPtr());
-        Mat img_rgb(_height, _width, CV_8UC3);
-        cvtColor(img, img_rgb, COLOR_YUV2RGBA_YV12, 3);
-        imshow ("RAW", img_rgb);
-//        if(waitKey(30) >= 0) break;
-
-
-
         for (int y = 0; y < _blocksPerHeight; y++) {
             for (int x = 0; x < _blocksPerWidth; x++) {
-                Frame curBlock = curFrame.getBlock(y, x, _blockWidth);
+                std::unique_lock<std::mutex> lk(cv_m);
+                cond.wait(lk, []{return nThreads > 0;});
 
-                int searchFromY = std::max(y - _searchRadius, 0);
-                int searchToY = std::min(y + _searchRadius, _blocksPerHeight - 1);
+//                fullSearch(y, x, curFrame, prevFrame, newFrame);
 
-                int searchFromX = std::max(x - _searchRadius, 0);
-                int searchToX = std::min(x + _searchRadius, _blocksPerWidth - 1);
-
-                double bestScore = -1;
-                int bestPrevY = -1;
-                int bestPrevX = -1;
-                for (int prevFrameY = searchFromY; prevFrameY <= searchToY; prevFrameY++) {
-                    for (int prevFrameX = searchFromX; prevFrameX <= searchToX; prevFrameX++) {
-                        Frame prevBlock = prevFrame.getBlock(prevFrameY, prevFrameX, _blockWidth);
-
-                        double score = calculatePSNR(curBlock, prevBlock);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestPrevY = prevFrameY;
-                            bestPrevX = prevFrameX;
-                        }
-                    }
-                }
-
-                // Тут эти действия можно сделать тут же на месте, сэкономив время
-                // Вынес в одельный метод для наглядности работы с вектором движения
-                MotionVector motionVector{y - bestPrevY, x - bestPrevX};
-                Frame compensatedBlock = calculateCompensatedBlock(y, x, curFrame, prevFrame, motionVector, _blockWidth);
-
-//                newFrame.setBlock(y, x, compensatedBlock);
-                newFrame.setBlock(y, x, prevFrame.getBlock(bestPrevY, bestPrevX, _blockWidth));
+                std::thread worker(&MotionCompensation::fullSearch, this, y, x, std::ref(curFrame), std::ref(prevFrame), std::ref(newFrame));
+                worker.join();
+//                std::thread worker{&MotionCompensation::fullSearch, this, y, x, std::ref(curFrame), std::ref(prevFrame), std::ref(newFrame)};
             }
         }
 
-        Frame diff2 = newFrame - curFrame;
-        Mat img2(_height + _height/2, _width, CV_8U, diff2.getDataPtr());
+        Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
         Mat img_rgb2(_height, _width, CV_8UC3);
         cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
         imshow("comp", img_rgb2);
@@ -107,12 +84,41 @@ double MotionCompensation::calculatePSNR(const Frame& frame1, const Frame& frame
     return psnr;
 }
 
-// FIXME: look at lines 79 - 83
-Frame MotionCompensation::calculateCompensatedBlock(int y, int x,
-                                                    const Frame &curFrame, const Frame &prevFrame,
-                                                    MotionVector vector, int blockWidth) {
-    Frame curBlock = curFrame.getBlock(y, x, blockWidth);
-    Frame prevBlock = prevFrame.getBlock(y + vector.deltaY, x + vector.deltaX, blockWidth);
+void MotionCompensation::fullSearch(int y, int x, const Frame& curFrame, const Frame& prevFrame, Frame& newFrame) const {
+    std::cout << std::this_thread::get_id() << std::endl;
 
-    return curBlock - prevBlock;
+    nThreads--;
+
+    Frame curBlock = curFrame.getBlock(y, x, _blockWidth);
+
+    int searchFromY = std::max(y - _searchRadiusInBlocks, 0);
+    int searchToY = std::min(y + _searchRadiusInBlocks, _blocksPerHeight - 1);
+
+    int searchFromX = std::max(x - _searchRadiusInBlocks, 0);
+    int searchToX = std::min(x + _searchRadiusInBlocks, _blocksPerWidth - 1);
+
+    double bestScore = -1;
+    Frame bestPrevBlock(_blockWidth, _blockWidth, _blockSize);
+    for (int prevFrameY = searchFromY; prevFrameY <= searchToY; prevFrameY++) {
+        for (int prevFrameX = searchFromX; prevFrameX <= searchToX; prevFrameX++) {
+            Frame prevBlock = prevFrame.getBlock(prevFrameY, prevFrameX, _blockWidth);
+
+            double score = calculatePSNR(curBlock, prevBlock);
+            if (score > bestScore) {
+                bestScore = score;
+                bestPrevBlock = prevBlock;
+            }
+        }
+    }
+
+    newFrame.setBlock(y, x, curBlock - bestPrevBlock);
+
+    nThreads++;
+    cond.notify_all();
 }
+
+//Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
+//Mat img_rgb2(_height, _width, CV_8UC3);
+//cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
+//imshow("comp", img_rgb2);
+//if(waitKey(30) >= 0) break;

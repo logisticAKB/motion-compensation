@@ -17,14 +17,13 @@ public:
     MotionCompensation(const std::string& path, int width, int height);
     ~MotionCompensation();
 
-    void run();
+    void run(int threadsNum=1);
 
     static double calculatePSNR(const Frame& frame1, const Frame& frame2);
-    static Frame calculateCompensatedBlock(int y, int x,
-                                           const Frame& curFrame, const Frame& prevFrame,
-                                           MotionVector vector, int blockWidth);
 
 private:
+    void fullSearch(int y, int x, const Frame& curFrame, const Frame& prevFrame, Frame& newFrame) const;
+
     int _width;
     int _height;
     int _bufferSize;
@@ -34,7 +33,7 @@ private:
     const int _blockWidth = 8;
     const int _blockSize = _blockWidth * _blockWidth;
 
-    const int _searchRadius = 4;
+    const int _searchRadiusInBlocks = 2;
 
     int _blocksPerWidth;
     int _blocksPerHeight;
