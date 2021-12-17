@@ -17,7 +17,7 @@ public:
     MotionCompensation(const std::string& path, int width, int height);
     ~MotionCompensation();
 
-    void run(int threadsNum=1);
+    void run(int numThreads=1);
 
     static double calculatePSNR(const Frame& frame1, const Frame& frame2);
 

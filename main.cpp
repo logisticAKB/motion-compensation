@@ -1,11 +1,35 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <chrono>
 
 #include "MotionCompensation.h"
 #include "Frame.h"
+#include "ThreadPool.h"
+
+//void test() {
+//    int x = 1 + (rand() % static_cast<int>(5 - 1 + 1));
+//    size_t id = std::hash<std::thread::id>{}(std::this_thread::get_id());
+//
+//    std::cout << "Thread " << id << " sleeping for " << x << "sec" << std::endl;
+//
+//    std::this_thread::sleep_for(std::chrono::seconds(x));
+//
+//    std::cout << "Thread " << id << " finished" << std::endl;
+//}
 
 int main() {
+//    srand ( time(NULL) );
+//
+//    ThreadPool pool(4);
+//
+//    pool.add(std::bind(test));
+//    pool.add(std::bind(test));
+//    pool.add(std::bind(test));
+//    pool.add(std::bind(test));
+
+//    std::this_thread::sleep_for(std::chrono::seconds(10));
+
 //    auto *data = new unsigned char[16]{1,2,3,4,
 //                                       5,6,7,8,
 //                                       9,10,11,12,
@@ -44,8 +68,10 @@ int main() {
 //        std::cout << std::endl;
 //    }
 
+
+
     MotionCompensation mc("../video.yuv420p", 1920, 1080);
-    mc.run(8);
+    mc.run(4);
 
 //    std::ifstream input( "/home/alexey/Documents/video.yuv420p", std::ios::binary);
 //

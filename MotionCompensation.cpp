@@ -1,19 +1,12 @@
 #include <iostream>
 #include <cmath>
-#include <atomic>
-#include <thread>
-#include <condition_variable>
-
 #include "MotionCompensation.h"
 #include "Frame.h"
+#include "ThreadPool.h"
 
-#include <opencv2/opencv.hpp>
-
-using namespace cv;
-
-std::atomic<int> nThreads;
-std::mutex cv_m;
-std::condition_variable cond;
+//#include <opencv2/opencv.hpp>
+//
+//using namespace cv;
 
 MotionCompensation::MotionCompensation(const std::string& path, int width, int height) {
     _width = width;
@@ -32,8 +25,8 @@ MotionCompensation::~MotionCompensation() {
     _buffer = nullptr;
 }
 
-void MotionCompensation::run(int threadsNum) {
-    nThreads = threadsNum;
+void MotionCompensation::run(int numThreads) {
+    ThreadPool pool(numThreads);
 
     _inputStream.read((char *)_buffer, _bufferSize);
     Frame prevFrame(_width, (int)(_height * 1.5), _bufferSize, _buffer);
@@ -47,22 +40,17 @@ void MotionCompensation::run(int threadsNum) {
 
         for (int y = 0; y < _blocksPerHeight; y++) {
             for (int x = 0; x < _blocksPerWidth; x++) {
-                std::unique_lock<std::mutex> lk(cv_m);
-                cond.wait(lk, []{return nThreads > 0;});
+                pool.add(std::bind(&MotionCompensation::fullSearch, this, y, x, curFrame, prevFrame, newFrame));
 
 //                fullSearch(y, x, curFrame, prevFrame, newFrame);
-
-                std::thread worker(&MotionCompensation::fullSearch, this, y, x, std::ref(curFrame), std::ref(prevFrame), std::ref(newFrame));
-                worker.join();
-//                std::thread worker{&MotionCompensation::fullSearch, this, y, x, std::ref(curFrame), std::ref(prevFrame), std::ref(newFrame)};
             }
         }
 
-        Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
-        Mat img_rgb2(_height, _width, CV_8UC3);
-        cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
-        imshow("comp", img_rgb2);
-        if(waitKey(30) >= 0) break;
+//        Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
+//        Mat img_rgb2(_height, _width, CV_8UC3);
+//        cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
+//        imshow("comp", img_rgb2);
+//        if(waitKey(30) >= 0) break;
 
         prevFrame = curFrame;
     }
@@ -85,10 +73,6 @@ double MotionCompensation::calculatePSNR(const Frame& frame1, const Frame& frame
 }
 
 void MotionCompensation::fullSearch(int y, int x, const Frame& curFrame, const Frame& prevFrame, Frame& newFrame) const {
-    std::cout << std::this_thread::get_id() << std::endl;
-
-    nThreads--;
-
     Frame curBlock = curFrame.getBlock(y, x, _blockWidth);
 
     int searchFromY = std::max(y - _searchRadiusInBlocks, 0);
@@ -112,9 +96,6 @@ void MotionCompensation::fullSearch(int y, int x, const Frame& curFrame, const F
     }
 
     newFrame.setBlock(y, x, curBlock - bestPrevBlock);
-
-    nThreads++;
-    cond.notify_all();
 }
 
 //Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
