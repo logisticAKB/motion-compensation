@@ -14,12 +14,13 @@ struct MotionVector {
 class MotionCompensation {
 
 public:
-    MotionCompensation(const std::string& path, int width, int height);
+    MotionCompensation(const std::string& pathIn, const std::string& pathOut, int width, int height);
     ~MotionCompensation();
 
     void run(int numThreads=1);
 
     static double calculatePSNR(const Frame& frame1, const Frame& frame2);
+    static int calculateSAD(const Frame& frame1, const Frame& frame2);
 
 private:
     void fullSearch(int y, int x, const Frame& curFrame, const Frame& prevFrame, Frame& newFrame) const;
@@ -29,6 +30,7 @@ private:
     int _bufferSize;
     unsigned char *_buffer;
     std::ifstream _inputStream;
+    std::ofstream _outputStream;
 
     const int _blockWidth = 8;
     const int _blockSize = _blockWidth * _blockWidth;

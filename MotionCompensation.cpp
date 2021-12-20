@@ -4,29 +4,33 @@
 #include "Frame.h"
 #include "ThreadPool.h"
 
-//#include <opencv2/opencv.hpp>
-//
-//using namespace cv;
+#include <opencv2/opencv.hpp>
 
-MotionCompensation::MotionCompensation(const std::string& path, int width, int height) {
+using namespace cv;
+
+MotionCompensation::MotionCompensation(const std::string& pathIn, const std::string& pathOut, int width, int height) {
     _width = width;
     _height = height;
     _bufferSize = (int)(_width * _height * 1.5);
     _buffer = new unsigned char [_bufferSize];
-    _inputStream.open(path, std::ios::binary);
+    _inputStream.open(pathIn, std::ios::binary);
+    _outputStream.open(pathOut, std::ios::binary);
 
     _blocksPerWidth = _width / _blockWidth;
-    _blocksPerHeight = _height / _blockWidth;
+    _blocksPerHeight = (int)(_height * 1.5) / _blockWidth;
 }
 
 MotionCompensation::~MotionCompensation() {
     _inputStream.close();
+    _outputStream.close();
     delete[] _buffer;
     _buffer = nullptr;
 }
 
 void MotionCompensation::run(int numThreads) {
-    ThreadPool pool(numThreads);
+    std::mutex mx;
+    std::condition_variable nextFrameCond;
+    ThreadPool pool(numThreads, &nextFrameCond);
 
     _inputStream.read((char *)_buffer, _bufferSize);
     Frame prevFrame(_width, (int)(_height * 1.5), _bufferSize, _buffer);
@@ -40,17 +44,25 @@ void MotionCompensation::run(int numThreads) {
 
         for (int y = 0; y < _blocksPerHeight; y++) {
             for (int x = 0; x < _blocksPerWidth; x++) {
-                pool.add(std::bind(&MotionCompensation::fullSearch, this, y, x, curFrame, prevFrame, newFrame));
-
+                pool.add(std::bind(&MotionCompensation::fullSearch, this,
+                                   y, x, std::cref(curFrame), std::cref(prevFrame), std::ref(newFrame)));
+//
 //                fullSearch(y, x, curFrame, prevFrame, newFrame);
             }
         }
 
-//        Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
-//        Mat img_rgb2(_height, _width, CV_8UC3);
-//        cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
-//        imshow("comp", img_rgb2);
-//        if(waitKey(30) >= 0) break;
+        {
+            std::unique_lock<std::mutex> lock(mx);
+            nextFrameCond.wait(lock, [&pool]{return !pool.isProcessing();});
+        }
+
+        _outputStream.write((char *)newFrame.getDataPtr(), newFrame.getSize());
+
+        Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
+        Mat img_rgb2(_height, _width, CV_8UC3);
+        cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
+        imshow("comp", img_rgb2);
+        if(waitKey(30) >= 0) break;
 
         prevFrame = curFrame;
     }
@@ -81,21 +93,33 @@ void MotionCompensation::fullSearch(int y, int x, const Frame& curFrame, const F
     int searchFromX = std::max(x - _searchRadiusInBlocks, 0);
     int searchToX = std::min(x + _searchRadiusInBlocks, _blocksPerWidth - 1);
 
-    double bestScore = -1;
+    int bestSad = INT_MAX;
     Frame bestPrevBlock(_blockWidth, _blockWidth, _blockSize);
     for (int prevFrameY = searchFromY; prevFrameY <= searchToY; prevFrameY++) {
         for (int prevFrameX = searchFromX; prevFrameX <= searchToX; prevFrameX++) {
             Frame prevBlock = prevFrame.getBlock(prevFrameY, prevFrameX, _blockWidth);
 
-            double score = calculatePSNR(curBlock, prevBlock);
-            if (score > bestScore) {
-                bestScore = score;
+            int sad = calculateSAD(curBlock, prevBlock);
+            if (sad < bestSad) {
+                bestSad = sad;
                 bestPrevBlock = prevBlock;
             }
         }
     }
 
     newFrame.setBlock(y, x, curBlock - bestPrevBlock);
+}
+
+int MotionCompensation::calculateSAD(const Frame &frame1, const Frame &frame2) {
+    auto frameData1 = frame1.getDataPtr();
+    auto frameData2 = frame2.getDataPtr();
+
+    int sum = 0;
+    for (int i = 0; i < frame1.getSize(); i++) {
+        sum += abs((int)frameData1[i] - (int)frameData2[i]);
+    }
+
+    return sum;
 }
 
 //Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());

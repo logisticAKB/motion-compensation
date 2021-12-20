@@ -1,6 +1,10 @@
 #include "ThreadPool.h"
+#include <iostream>
 
-ThreadPool::ThreadPool(unsigned int numThreads) {
+ThreadPool::ThreadPool(unsigned int numThreads, std::condition_variable* notifier) {
+    _notifier = notifier;
+
+    _numJobsRunning = 0;
     _terminate = false;
     _terminated = false;
 
@@ -12,6 +16,8 @@ ThreadPool::ThreadPool(unsigned int numThreads) {
 
 void ThreadPool::runner() {
     while (true) {
+        std::function<void()> _job;
+
         {
             std::unique_lock<std::mutex> lock(_queueMutex);
             _cond.wait(lock, [this]{return !_jobQueue.empty() || _terminate;});
@@ -22,7 +28,10 @@ void ThreadPool::runner() {
             _jobQueue.pop();
         }
 
+        _numJobsRunning++;
         _job();
+        _numJobsRunning--;
+        if (!isProcessing()) _notifier->notify_all();
     }
 }
 
@@ -55,6 +64,6 @@ ThreadPool::~ThreadPool() {
     if (!_terminated) shutdown();
 }
 
-bool ThreadPool::queueEmpty() {
-    return _jobQueue.empty();
+bool ThreadPool::isProcessing() {
+    return (_numJobsRunning > 0) || !_jobQueue.empty();
 }

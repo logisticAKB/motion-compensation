@@ -5,16 +5,17 @@
 #include <thread>
 #include <mutex>
 #include <queue>
+#include <atomic>
 #include <condition_variable>
 
 class ThreadPool {
 
 public:
-    explicit ThreadPool(unsigned int numThreads);
+    explicit ThreadPool(unsigned int numThreads, std::condition_variable* notifier);
     ~ThreadPool();
 
     void add(const std::function<void()>& job);
-    bool queueEmpty();
+    bool isProcessing();
     void shutdown();
 
 private:
@@ -25,7 +26,8 @@ private:
     std::mutex _queueMutex;
     std::mutex _poolMutex;
     std::condition_variable _cond;
-    std::function<void()> _job;
+    std::condition_variable *_notifier;
+    std::atomic<int> _numJobsRunning;
     bool _terminate;
     bool _terminated;
 
