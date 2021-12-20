@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include <climits>
+#include <functional>
 
 #include "MotionCompensation.h"
 #include "Frame.h"
