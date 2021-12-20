@@ -6,24 +6,20 @@
 
 #include "Frame.h"
 
-struct MotionVector {
-    int deltaY;
-    int deltaX;
-};
-
 class MotionCompensation {
 
 public:
     MotionCompensation(const std::string& pathIn, const std::string& pathOut, int width, int height);
     ~MotionCompensation();
 
-    void run(int numThreads=1);
+    void run(int numThreads=1, const std::string& searchType="full", bool printPSNR=false);
 
     static double calculatePSNR(const Frame& frame1, const Frame& frame2);
     static int calculateSAD(const Frame& frame1, const Frame& frame2);
 
 private:
     void fullSearch(int y, int x, const Frame& curFrame, const Frame& prevFrame, Frame& newFrame) const;
+    void threeStepSearch(int y, int x, const Frame& curFrame, const Frame& prevFrame, Frame& newFrame) const;
 
     int _width;
     int _height;

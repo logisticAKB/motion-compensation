@@ -1,5 +1,4 @@
 #include "ThreadPool.h"
-#include <iostream>
 
 ThreadPool::ThreadPool(unsigned int numThreads, std::condition_variable* notifier) {
     _notifier = notifier;

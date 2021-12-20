@@ -1,5 +1,5 @@
-#include <iostream>
 #include <cmath>
+
 #include "MotionCompensation.h"
 #include "Frame.h"
 #include "ThreadPool.h"
@@ -27,7 +27,7 @@ MotionCompensation::~MotionCompensation() {
     _buffer = nullptr;
 }
 
-void MotionCompensation::run(int numThreads) {
+void MotionCompensation::run(int numThreads, const std::string& searchType, bool printPSNR) {
     std::mutex mx;
     std::condition_variable nextFrameCond;
     ThreadPool pool(numThreads, &nextFrameCond);
@@ -40,14 +40,21 @@ void MotionCompensation::run(int numThreads) {
 
         Frame newFrame(_width, (int)(_height * 1.5), _bufferSize);
 
+        // Identical frame skipping. Not a part of algorithm. Just for this example
         if (prevFrame == curFrame) continue;
+
+        if (printPSNR)
+            std::cout << "PSNR for previous and current frame: " << calculatePSNR(prevFrame, curFrame) << std::endl;
 
         for (int y = 0; y < _blocksPerHeight; y++) {
             for (int x = 0; x < _blocksPerWidth; x++) {
-                pool.add(std::bind(&MotionCompensation::fullSearch, this,
-                                   y, x, std::cref(curFrame), std::cref(prevFrame), std::ref(newFrame)));
-//
-//                fullSearch(y, x, curFrame, prevFrame, newFrame);
+                if (searchType == "full") {
+                    pool.add(std::bind(&MotionCompensation::fullSearch, this,
+                                       y, x, std::cref(curFrame), std::cref(prevFrame), std::ref(newFrame)));
+                } else {
+                    pool.add(std::bind(&MotionCompensation::threeStepSearch, this,
+                                       y, x, std::cref(curFrame), std::cref(prevFrame), std::ref(newFrame)));
+                }
             }
         }
 
@@ -58,11 +65,13 @@ void MotionCompensation::run(int numThreads) {
 
         _outputStream.write((char *)newFrame.getDataPtr(), newFrame.getSize());
 
+        //--------------------------------------------------------------
         Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
         Mat img_rgb2(_height, _width, CV_8UC3);
         cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
         imshow("comp", img_rgb2);
         if(waitKey(30) >= 0) break;
+        //--------------------------------------------------------------
 
         prevFrame = curFrame;
     }
@@ -110,6 +119,45 @@ void MotionCompensation::fullSearch(int y, int x, const Frame& curFrame, const F
     newFrame.setBlock(y, x, curBlock - bestPrevBlock);
 }
 
+void MotionCompensation::threeStepSearch(int y, int x, const Frame &curFrame, const Frame &prevFrame,
+                                         Frame &newFrame) const {
+    Frame curBlock = curFrame.getBlock(y, x, _blockWidth);
+
+    int stepSize = 4;
+    std::vector<std::pair<int, int>> d = { {-1, -1}, {-1, 0}, {-1, 1},
+                                           {0, -1}, {0, 0}, {0, 1},
+                                           {1, -1}, {1, 0}, {1, 1} };
+    int newY = y;
+    int newX = x;
+    while (stepSize != 1) {
+        int bestSad = INT_MAX;
+        int bestY = -1;
+        int bestX = -1;
+
+        for (auto k : d) {
+            int prevFrameY = k.first * stepSize + newY;
+            int prevFrameX = k.second * stepSize + newX;
+
+            if (prevFrameY >= 0 && prevFrameY < _blocksPerHeight &&
+                    prevFrameX >= 0 && prevFrameX < _blocksPerWidth) {
+                Frame prevBlock = prevFrame.getBlock(prevFrameY, prevFrameX, _blockWidth);
+
+                int sad = calculateSAD(curBlock, prevBlock);
+                if (sad < bestSad) {
+                    bestSad = sad;
+                    bestY = prevFrameY;
+                    bestX = prevFrameX;
+                }
+            }
+        }
+
+        newY = bestY;
+        newX = bestX;
+        stepSize /= 2;
+    }
+    newFrame.setBlock(y, x, curBlock - prevFrame.getBlock(newY, newX, _blockWidth));
+}
+
 int MotionCompensation::calculateSAD(const Frame &frame1, const Frame &frame2) {
     auto frameData1 = frame1.getDataPtr();
     auto frameData2 = frame2.getDataPtr();
@@ -121,9 +169,3 @@ int MotionCompensation::calculateSAD(const Frame &frame1, const Frame &frame2) {
 
     return sum;
 }
-
-//Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
-//Mat img_rgb2(_height, _width, CV_8UC3);
-//cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
-//imshow("comp", img_rgb2);
-//if(waitKey(30) >= 0) break;

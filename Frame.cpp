@@ -1,5 +1,6 @@
 #include <cstring>
-#include <iostream>
+#include <cmath>
+
 #include "Frame.h"
 
 Frame::Frame(int width, int height, int dataSize, unsigned char *data) {
@@ -100,7 +101,7 @@ Frame operator-(const Frame &lhs, const Frame &rhs) {
     memcpy(buffer, lhs.getDataPtr(), lhs.getSize());
 
     for (int i = 0; i < lhs.getSize(); i++) {
-        buffer[i] = abs((int)lhs.getDataPtr()[i] - (int)rhs.getDataPtr()[i]);
+        buffer[i] = (unsigned char)std::abs((int)lhs.getDataPtr()[i] - (int)rhs.getDataPtr()[i]);
     }
 
     Frame result(lhs.getWidth(), lhs.getHeight(), lhs.getSize(), buffer);
