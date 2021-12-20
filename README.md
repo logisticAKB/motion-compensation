@@ -9,6 +9,7 @@
  - Ubuntu
    - `mkdir build && cd build`
    - `cmake ..`
+   - `make`
    - `./motion_compensation`
  - Windows
    - tbd
