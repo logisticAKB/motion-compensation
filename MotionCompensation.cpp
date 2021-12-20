@@ -1,12 +1,10 @@
+#include <iostream>
 #include <cmath>
+#include <climits>
 
 #include "MotionCompensation.h"
 #include "Frame.h"
 #include "ThreadPool.h"
-
-#include <opencv2/opencv.hpp>
-
-using namespace cv;
 
 MotionCompensation::MotionCompensation(const std::string& pathIn, const std::string& pathOut, int width, int height) {
     _width = width;
@@ -64,14 +62,6 @@ void MotionCompensation::run(int numThreads, const std::string& searchType, bool
         }
 
         _outputStream.write((char *)newFrame.getDataPtr(), newFrame.getSize());
-
-        //--------------------------------------------------------------
-        Mat img2(_height + _height/2, _width, CV_8U, newFrame.getDataPtr());
-        Mat img_rgb2(_height, _width, CV_8UC3);
-        cvtColor(img2, img_rgb2, COLOR_YUV2RGBA_YV12, 3);
-        imshow("comp", img_rgb2);
-        if(waitKey(30) >= 0) break;
-        //--------------------------------------------------------------
 
         prevFrame = curFrame;
     }
