@@ -12,7 +12,8 @@
    - `make`
    - `./motion_compensation`
  - Windows
-   - tbd
+   - Собирается и запускается в Visual Studio
+   - Обязательно выставить в `CMakeSettings.json` строчку `"configurationType": "Release"`. В дебаге будет крашить на строчке `delete[]` в деструкторе класса `Frame`. Ругается на повреждение кучи. Разрабатывал на Linux, увидел это поздно, когда решил протестировать под Windows. Но никаких утечек памяти не наблюдается. Возможно стоило использовать умные указатели заместо обычных.
 
 #### 3. После завершения работы программы можно сконвертировать сырой результат в mp4 
 `ffmpeg -f rawvideo -vcodec rawvideo -s 1920x1080 -r 30 -pix_fmt yuv420p -i sample1.yuv420p -c:v libx264 -preset slow -qp 0 output.mp4`
