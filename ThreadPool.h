@@ -12,7 +12,7 @@
 class ThreadPool {
 
 public:
-    explicit ThreadPool(unsigned int numThreads, std::condition_variable* notifier);
+    explicit ThreadPool(unsigned int numThreads);
     ~ThreadPool();
 
     void add(const std::function<void()>& job);
@@ -27,7 +27,6 @@ private:
     std::mutex _queueMutex;
     std::mutex _poolMutex;
     std::condition_variable _cond;
-    std::condition_variable *_notifier;
     std::atomic<int> _numJobsRunning;
     bool _terminate;
     bool _terminated;

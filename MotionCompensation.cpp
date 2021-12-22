@@ -27,9 +27,7 @@ void MotionCompensation::run(int numThreads, const std::string& searchType, bool
     auto *curFrame = new unsigned char [_frameSize];
     auto *newFrame = new unsigned char [_frameSize];
 
-    std::mutex mx;
-    std::condition_variable nextFrameCond;
-    ThreadPool pool(numThreads, &nextFrameCond);
+    ThreadPool pool(numThreads);
 
     _inputStream.read((char *)prevFrame, _frameSize);
 
@@ -47,10 +45,7 @@ void MotionCompensation::run(int numThreads, const std::string& searchType, bool
             }
         }
 
-        {
-            std::unique_lock<std::mutex> lock(mx);
-            nextFrameCond.wait(lock, [&pool]{return !pool.isProcessing();});
-        }
+        while (pool.isProcessing()) {}
 
         _outputStream.write((char *)newFrame, _frameSize);
 

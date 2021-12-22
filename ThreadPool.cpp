@@ -1,8 +1,6 @@
 #include "ThreadPool.h"
 
-ThreadPool::ThreadPool(unsigned int numThreads, std::condition_variable* notifier) {
-    _notifier = notifier;
-
+ThreadPool::ThreadPool(unsigned int numThreads) {
     _numJobsRunning = 0;
     _terminate = false;
     _terminated = false;
@@ -30,7 +28,6 @@ void ThreadPool::runner() {
         _numJobsRunning++;
         _job();
         _numJobsRunning--;
-        if (!isProcessing()) _notifier->notify_all();
     }
 }
 

@@ -1,6 +1,7 @@
 video.*
 venv/
 cmake-build-debug/
+cmake-build-release/
 .idea
 *.mp4
 *.yuv420p
