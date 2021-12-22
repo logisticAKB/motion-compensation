@@ -4,8 +4,6 @@
 #include <string>
 #include <fstream>
 
-#include "Frame.h"
-
 class MotionCompensation {
 
 public:
@@ -14,17 +12,30 @@ public:
 
     void run(int numThreads=1, const std::string& searchType="full", bool printPSNR=false);
 
-    static double calculatePSNR(const Frame& frame1, const Frame& frame2);
-    static int calculateSAD(const Frame& frame1, const Frame& frame2);
-
 private:
-    void fullSearch(int y, int x, const Frame& curFrame, const Frame& prevFrame, Frame& newFrame) const;
-    void threeStepSearch(int y, int x, const Frame& curFrame, const Frame& prevFrame, Frame& newFrame) const;
+    double calculatePSNR(const unsigned char *frame1, const unsigned char *frame2) const;
+    int calculateSAD(int y1, int x1,
+                     int y2, int x2,
+                     const unsigned char *frame1, const unsigned char *frame2) const;
+
+    void setNewBlock(int y, int x,
+                     int newY, int newX,
+                     const unsigned char *curFrame,
+                     const unsigned char *prevFrame,
+                     unsigned char *newFrame) const;
+
+    void fullSearch(int y, int x,
+                    const unsigned char *curFrame,
+                    const unsigned char *prevFrame,
+                    unsigned char *newFrame) const;
+    void threeStepSearch(int y, int x,
+                         const unsigned char *curFrame,
+                         const unsigned char *prevFrame,
+                         unsigned char *newFrame) const;
 
     int _width;
     int _height;
-    int _bufferSize;
-    unsigned char *_buffer;
+    int _frameSize;
     std::ifstream _inputStream;
     std::ofstream _outputStream;
 

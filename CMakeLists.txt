@@ -9,8 +9,6 @@ add_executable(motion_compensation
         main.cpp
         MotionCompensation.cpp
         MotionCompensation.h
-        Frame.cpp
-        Frame.h
         ThreadPool.cpp
         ThreadPool.h)
 
