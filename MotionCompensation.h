@@ -22,16 +22,16 @@ private:
                      int newY, int newX,
                      const unsigned char *curBlock,
                      const unsigned char *prevFrame,
-                     unsigned char *newFrame) const;
+                     short *newFrame) const;
 
     void fullSearch(int y, int x,
                     const unsigned char *curFrame,
                     const unsigned char *prevFrame,
-                    unsigned char *newFrame) const;
+                    short *newFrame) const;
     void threeStepSearch(int y, int x,
                          const unsigned char *curFrame,
                          const unsigned char *prevFrame,
-                         unsigned char *newFrame) const;
+                         short *newFrame) const;
 
     int _width;
     int _height;

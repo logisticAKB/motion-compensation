@@ -25,7 +25,7 @@ MotionCompensation::~MotionCompensation() {
 void MotionCompensation::run(int numThreads, const std::string& searchType, bool printPSNR) {
     auto *prevFrame = new unsigned char [_frameSize];
     auto *curFrame = new unsigned char [_frameSize];
-    auto *newFrame = new unsigned char [_frameSize];
+    auto *newFrame = new short [_frameSize];
 
     ThreadPool pool(numThreads);
 
@@ -47,7 +47,7 @@ void MotionCompensation::run(int numThreads, const std::string& searchType, bool
 
         while (pool.isProcessing()) {}
 
-        _outputStream.write((char *)newFrame, _frameSize);
+        _outputStream.write(reinterpret_cast<const char*>(newFrame), std::streamsize(_frameSize * sizeof(short)));
 
         std::copy(curFrame, curFrame + _frameSize, prevFrame);
     }
@@ -86,7 +86,7 @@ double MotionCompensation::calculatePSNR(const unsigned char *frame1, const unsi
 void MotionCompensation::fullSearch(int y, int x,
                                     const unsigned char *curFrame,
                                     const unsigned char *prevFrame,
-                                    unsigned char *newFrame) const {
+                                    short *newFrame) const {
     unsigned char curBlock[_blockSize];
 
     int blockYOffset = y * _blockWidth;
@@ -124,7 +124,7 @@ void MotionCompensation::fullSearch(int y, int x,
 void MotionCompensation::threeStepSearch(int y, int x,
                                          const unsigned char *curFrame,
                                          const unsigned char *prevFrame,
-                                         unsigned char *newFrame) const {
+                                         short *newFrame) const {
     int stepSize = 4;
     std::vector<std::pair<int, int>> d = { {-1, -1}, {-1, 0}, {-1, 1},
                                            {0, -1}, {0, 0}, {0, 1},
@@ -175,7 +175,7 @@ void MotionCompensation::setNewBlock(int y, int x,
                                      int newY, int newX,
                                      const unsigned char *curBlock,
                                      const unsigned char *prevFrame,
-                                     unsigned char *newFrame) const {
+                                     short *newFrame) const {
     int curBlockYOffset = y * _blockWidth;
     int curBlockXOffset = x * _blockWidth;
 
@@ -185,8 +185,7 @@ void MotionCompensation::setNewBlock(int y, int x,
     for (int i = 0; i < _blockWidth; ++i) {
         for (int j = 0; j < _blockWidth; ++j) {
             newFrame[_width * (curBlockYOffset + i) + (curBlockXOffset + j)] =
-                    (unsigned char)abs((int)curBlock[i * _blockWidth + j] -
-                                       (int)prevFrame[_width * (prevBlockYOffset + i) + (prevBlockXOffset + j)]);
+                    (short)((short)curBlock[i * _blockWidth + j] - (short)prevFrame[_width * (prevBlockYOffset + i) + (prevBlockXOffset + j)]);
         }
     }
 }
