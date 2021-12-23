@@ -39,11 +39,6 @@ private:
     std::ifstream _inputStream;
     std::ofstream _outputStream;
 
-    const int _blockWidth = 8;
-    const int _blockSize = _blockWidth * _blockWidth;
-
-    const int _searchRadiusInBlocks = 2;
-
     int _blocksPerWidth;
     int _blocksPerHeight;
 
