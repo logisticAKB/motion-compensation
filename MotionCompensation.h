@@ -14,13 +14,13 @@ public:
 
 private:
     double calculatePSNR(const unsigned char *frame1, const unsigned char *frame2) const;
-    int calculateSAD(int y1, int x1,
-                     int y2, int x2,
-                     const unsigned char *frame1, const unsigned char *frame2) const;
+    int calculateSAD(const unsigned char *curBlock,
+                     int prevFrameY, int prevFrameX,
+                     const unsigned char *prevFrame) const;
 
     void setNewBlock(int y, int x,
                      int newY, int newX,
-                     const unsigned char *curFrame,
+                     const unsigned char *curBlock,
                      const unsigned char *prevFrame,
                      unsigned char *newFrame) const;
 

@@ -87,6 +87,17 @@ void MotionCompensation::fullSearch(int y, int x,
                                     const unsigned char *curFrame,
                                     const unsigned char *prevFrame,
                                     unsigned char *newFrame) const {
+    unsigned char curBlock[_blockSize];
+
+    int blockYOffset = y * _blockWidth;
+    int blockXOffset = x * _blockWidth;
+
+    for (int i = 0; i < _blockWidth; ++i) {
+        for (int j = 0; j < _blockWidth; ++j) {
+            curBlock[i * _blockWidth + j] = curFrame[_width * (blockYOffset + i) + (blockXOffset + j)];
+        }
+    }
+
     int searchFromY = std::max(y - _searchRadiusInBlocks, 0);
     int searchToY = std::min(y + _searchRadiusInBlocks, _blocksPerHeight - 1);
 
@@ -98,7 +109,7 @@ void MotionCompensation::fullSearch(int y, int x,
     int bestPrevX = -1;
     for (int prevFrameY = searchFromY; prevFrameY <= searchToY; prevFrameY++) {
         for (int prevFrameX = searchFromX; prevFrameX <= searchToX; prevFrameX++) {
-            int sad = calculateSAD(y, x, prevFrameY, prevFrameX, curFrame, prevFrame);
+            int sad = calculateSAD(curBlock, prevFrameY, prevFrameX, prevFrame);
             if (sad < bestSad) {
                 bestSad = sad;
                 bestPrevY = prevFrameY;
@@ -107,7 +118,7 @@ void MotionCompensation::fullSearch(int y, int x,
         }
     }
 
-    setNewBlock(y, x, bestPrevY, bestPrevX, curFrame, prevFrame, newFrame);
+    setNewBlock(y, x, bestPrevY, bestPrevX, curBlock, prevFrame, newFrame);
 }
 
 void MotionCompensation::threeStepSearch(int y, int x,
@@ -118,6 +129,17 @@ void MotionCompensation::threeStepSearch(int y, int x,
     std::vector<std::pair<int, int>> d = { {-1, -1}, {-1, 0}, {-1, 1},
                                            {0, -1}, {0, 0}, {0, 1},
                                            {1, -1}, {1, 0}, {1, 1} };
+    unsigned char curBlock[_blockSize];
+
+    int blockYOffset = y * _blockWidth;
+    int blockXOffset = x * _blockWidth;
+
+    for (int i = 0; i < _blockWidth; ++i) {
+        for (int j = 0; j < _blockWidth; ++j) {
+            curBlock[i * _blockWidth + j] = curFrame[_width * (blockYOffset + i) + (blockXOffset + j)];
+        }
+    }
+
     int newY = y;
     int newX = x;
     while (stepSize != 1) {
@@ -132,7 +154,7 @@ void MotionCompensation::threeStepSearch(int y, int x,
             if (prevFrameY >= 0 && prevFrameY < _blocksPerHeight &&
                     prevFrameX >= 0 && prevFrameX < _blocksPerWidth) {
 
-                int sad = calculateSAD(y, x, prevFrameY, prevFrameX, curFrame, prevFrame);
+                int sad = calculateSAD(curBlock, prevFrameY, prevFrameX, prevFrame);
                 if (sad < bestSad) {
                     bestSad = sad;
                     bestY = prevFrameY;
@@ -146,11 +168,12 @@ void MotionCompensation::threeStepSearch(int y, int x,
         stepSize /= 2;
     }
 
-    setNewBlock(y, x, newY, newX, curFrame, prevFrame, newFrame);
+    setNewBlock(y, x, newY, newX, curBlock, prevFrame, newFrame);
 }
 
-void MotionCompensation::setNewBlock(int y, int x, int newY, int newX,
-                                     const unsigned char *curFrame,
+void MotionCompensation::setNewBlock(int y, int x,
+                                     int newY, int newX,
+                                     const unsigned char *curBlock,
                                      const unsigned char *prevFrame,
                                      unsigned char *newFrame) const {
     int curBlockYOffset = y * _blockWidth;
@@ -162,26 +185,23 @@ void MotionCompensation::setNewBlock(int y, int x, int newY, int newX,
     for (int i = 0; i < _blockWidth; ++i) {
         for (int j = 0; j < _blockWidth; ++j) {
             newFrame[_width * (curBlockYOffset + i) + (curBlockXOffset + j)] =
-                    (unsigned char)abs((int)curFrame[_width * (curBlockYOffset + i) + (curBlockXOffset + j)] -
+                    (unsigned char)abs((int)curBlock[i * _blockWidth + j] -
                                        (int)prevFrame[_width * (prevBlockYOffset + i) + (prevBlockXOffset + j)]);
         }
     }
 }
 
-int MotionCompensation::calculateSAD(int y1, int x1,
-                                     int y2, int x2,
-                                     const unsigned char *frame1, const unsigned char *frame2) const {
-    int block1YOffset = y1 * _blockWidth;
-    int block1XOffset = x1 * _blockWidth;
-
-    int block2YOffset = y2 * _blockWidth;
-    int block2XOffset = x2 * _blockWidth;
+int MotionCompensation::calculateSAD(const unsigned char *curBlock,
+                                     int prevFrameY, int prevFrameX,
+                                     const unsigned char *prevFrame) const {
+    int prevBlock2YOffset = prevFrameY * _blockWidth;
+    int prevBlock2XOffset = prevFrameX * _blockWidth;
 
     int sum = 0;
     for (int i = 0; i < _blockWidth; ++i) {
         for (int j = 0; j < _blockWidth; ++j) {
-            sum += abs((int)frame1[_width * (block1YOffset + i) + (block1XOffset + j)] -
-                    (int)frame2[_width * (block2YOffset + i) + (block2XOffset + j)]);
+            sum += abs((int)curBlock[i * _blockWidth + j] -
+                    (int)prevFrame[_width * (prevBlock2YOffset + i) + (prevBlock2XOffset + j)]);
         }
     }
 
